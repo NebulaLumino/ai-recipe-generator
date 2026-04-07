@@ -1,92 +1,50 @@
-import { NextRequest, NextResponse } from 'next/server';
-import OpenAI from 'openai';
+import { NextRequest, NextResponse } from "next/server";
+import OpenAI from "openai";
+
+const client = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+  baseURL: "https://api.deepseek.com/v1",
+});
 
 export async function POST(req: NextRequest) {
   try {
-    const client = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-      baseURL: 'https://api.deepseek.com/v1',
-    });
-
-    const { ingredients, cuisineStyle, dietaryRestrictions, skillLevel, timeAvailable } = await req.json();
-
-    const prompt = `You are an expert chef and culinary creative. Generate a complete, detailed recipe based on the following inputs:
-
-**Available Ingredients:** ${ingredients}
-**Cuisine Style:** ${cuisineStyle}
-**Dietary Restrictions:** ${dietaryRestrictions || 'None'}
-**Cooking Skill Level:** ${skillLevel}
-**Time Available:** ${timeAvailable}
-
-Please provide a comprehensive recipe with all sections below:
-
-## 🍽️ RECIPE NAME
-Give the dish an appealing, evocative name.
-
-## 📝 DESCRIPTION
-A brief, enticing description of the dish (2-3 sentences).
-
-## 🔥 FLAVOR PROFILE ANALYSIS
-Analyze the flavor profile in detail:
-- **Primary flavors:** (e.g., savory, sweet, sour, bitter, umami)
-- **Secondary notes:** (e.g., smoky, floral, spicy, earthy)
-- **Texture balance:** (e.g., creamy vs crunchy, tender vs crispy)
-- **Aroma profile:** (what scents will fill the kitchen)
-
-## 🧂 INGREDIENTS (with measurements)
-Full ingredient list with precise measurements, noting which are in the available ingredients list vs. common pantry staples.
-
-## 👨‍🍳 STEP-BY-STEP INSTRUCTIONS
-Numbered, detailed cooking steps. Adapt complexity to "${skillLevel}" skill level. Include:
-- Prep work
-- Cooking technique
-- Key technique tips
-- plating/final assembly
-
-## ⏱️ TIMING GUIDE
-- Prep time: __
-- Cook time: __
-- Total time: __
-- Active vs passive time breakdown
-
-## 🍽️ SERVING SIZE
-Number of servings this recipe makes.
-
-## 🎨 PLATING IDEAS
-Creative plating suggestions:
-- Plate shape/type recommendation
-- Sauce application technique
-- Garnish recommendations
-- Height and visual layers
-- Color contrast suggestions
-
-## 🔄 INGREDIENT SUBSTITUTIONS
-3-5 practical substitutions for key ingredients, explaining how they affect flavor/texture:
-1. [Substitution 1] → Effect on dish
-2. [Substitution 2] → Effect on dish
-etc.
-
-## ⚠️ COMMON MISTAKES TO AVOID
-3 things that typically go wrong with this dish and how to prevent them.
-
-## 🍷 SERVING SUGGESTIONS
-What to serve alongside (side dishes, bread, beverages).
-
-Format the output with bold headers, emojis, structured sections, and clear step numbers. Make it feel like a professional recipe card.`;
+    const { ingredients, dietary, cuisine, skill, servings, prepTime, mealType } = await req.json();
 
     const response = await client.chat.completions.create({
-      model: 'deepseek-chat',
-      messages: [{ role: 'user', content: prompt }],
+      model: "deepseek-chat",
+      messages: [
+        {
+          role: "system",
+          content: `You are an expert culinary AI assistant specializing in personalized recipe generation and meal planning. Generate comprehensive, actionable output based on the user's inputs. Your output should include: a full recipe with ingredients list and step-by-step instructions, nutritional info estimate per serving, meal plan suggestions for the week, and a shopping list extension for any missing ingredients. Format everything clearly with headers, bullet points, and markdown. Be specific with measurements, temperatures, and times.`,
+        },
+        {
+          role: "user",
+          content: `Generate a personalized recipe with the following details:
+
+- Available Ingredients: ${ingredients}
+- Dietary Restrictions: ${dietary}
+- Cuisine Preference: ${cuisine}
+- Cooking Skill Level: ${skill}
+- Servings Needed: ${servings}
+- Prep Time Available: ${prepTime} minutes
+- Meal Type: ${mealType}
+
+Please provide:
+1. Recipe Name & Description
+2. Complete Ingredients List (with measurements)
+3. Step-by-Step Instructions
+4. Nutritional Info Estimate (per serving)
+5. Meal Plan Suggestions
+6. Shopping List Extension (additional items needed)`,
+        },
+      ],
       temperature: 0.8,
-      max_tokens: 3000,
+      max_tokens: 2000,
     });
 
     return NextResponse.json({ result: response.choices[0].message.content });
   } catch (error: unknown) {
-    console.error('Generate error:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Generation failed' },
-      { status: 500 }
-    );
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
