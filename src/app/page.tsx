@@ -3,159 +3,144 @@
 import { useState } from "react";
 
 export default function Home() {
-  const [form, setForm] = useState({
-    ingredients: "",
-    dietary: "",
-    cuisine: "",
-    skill: "",
-    servings: "",
-    prepTime: "",
-    mealType: "",
-  });
-  const [output, setOutput] = useState("");
+  const [ingredients, setIngredients] = useState("");
+  const [cuisine, setCuisine] = useState("");
+  const [dietary, setDietary] = useState("");
+  const [servings, setServings] = useState("4");
   const [loading, setLoading] = useState(false);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
+  const [result, setResult] = useState("");
+  const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setOutput("");
-    const res = await fetch("/api/generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
-    const data = await res.json();
-    setOutput(data.result || "Error generating recipe.");
-    setLoading(false);
+    setError("");
+    setResult("");
+
+    try {
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ingredients, cuisine, dietary, servings }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Generation failed");
+      setResult(data.result);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-950 to-gray-900 text-white px-4 py-12">
-      <div className="max-w-3xl mx-auto">
-        <div className="text-center mb-10">
-          <div className="inline-flex items-center gap-2 mb-4 px-4 py-2 rounded-full bg-amber-500/10 border border-amber-500/30">
-            <span className="text-amber-400 text-sm font-medium">🍳 AI × Food & Cooking</span>
+    <main className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-950 to-gray-900 text-white">
+      <div className="max-w-4xl mx-auto px-6 py-16">
+        {/* Header */}
+        <div className="text-center mb-12">
+          <div className="inline-flex items-center gap-2 mb-4 px-4 py-2 rounded-full bg-red-500/10 border border-red-500/20">
+            <span className="text-red-400 text-sm font-medium">HSL 0° — Red</span>
           </div>
-          <h1 className="text-4xl font-bold text-white mb-3">AI Recipe Generator & Meal Planner</h1>
-          <p className="text-gray-400 text-lg">Generate personalized recipes based on your ingredients, preferences, and meal planning needs</p>
+          <h1 className="text-4xl md:text-5xl font-bold mb-4">
+            <span className="text-red-400">AI Recipe</span> Generator
+          </h1>
+          <p className="text-gray-400 text-lg max-w-xl mx-auto">
+            Turn your available ingredients into delicious, restaurant-quality meals.
+            Just enter what you have — we'll craft the perfect recipe.
+          </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6 mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="space-y-6 mb-12">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-300">Available Ingredients</label>
-              <textarea name="ingredients" value={form.ingredients} onChange={handleChange} required rows={3} className="w-full bg-gray-800/60 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 transition-all text-sm" placeholder="e.g. chicken breast, garlic, lemon, olive oil, rosemary"></textarea>
+              <label className="text-sm font-medium text-gray-300">Available Ingredients</label>
+              <textarea
+                value={ingredients}
+                onChange={(e) => setIngredients(e.target.value)}
+                placeholder="chicken breast, garlic, lemon, rosemary, olive oil..."
+                rows={4}
+                required
+                className="w-full bg-gray-800/50 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 resize-none"
+              />
             </div>
 
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-300">Dietary Restrictions</label>
-              <select name="dietary" value={form.dietary} onChange={handleChange} required className="w-full bg-gray-800/60 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 transition-all text-sm">
-                <option value="">Select restriction</option>
-                <option value="none">None</option>
-                <option value="vegetarian">Vegetarian</option>
-                <option value="vegan">Vegan</option>
-                <option value="gluten-free">Gluten-Free</option>
-                <option value="dairy-free">Dairy-Free</option>
-                <option value="keto">Keto</option>
-                <option value="paleo">Paleo</option>
-                <option value="halal">Halal</option>
-                <option value="kosher">Kosher</option>
-                <option value="low-sodium">Low-Sodium</option>
-                <option value="low-carb">Low-Carb</option>
-              </select>
-            </div>
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-300">Preferred Cuisine</label>
+                <input
+                  type="text"
+                  value={cuisine}
+                  onChange={(e) => setCuisine(e.target.value)}
+                  placeholder="Italian, Japanese, Mexican..."
+                  className="w-full bg-gray-800/50 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50"
+                />
+              </div>
 
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-300">Cuisine Preference</label>
-              <select name="cuisine" value={form.cuisine} onChange={handleChange} required className="w-full bg-gray-800/60 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 transition-all text-sm">
-                <option value="">Select cuisine</option>
-                <option value="italian">Italian</option>
-                <option value="mexican">Mexican</option>
-                <option value="japanese">Japanese</option>
-                <option value="indian">Indian</option>
-                <option value="french">French</option>
-                <option value="chinese">Chinese</option>
-                <option value="thai">Thai</option>
-                <option value="mediterranean">Mediterranean</option>
-                <option value="american">American</option>
-                <option value="korean">Korean</option>
-                <option value="middle-eastern">Middle Eastern</option>
-                <option value="spanish">Spanish</option>
-                <option value="any">Any / Surprise Me</option>
-              </select>
-            </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-300">Dietary Restrictions</label>
+                <input
+                  type="text"
+                  value={dietary}
+                  onChange={(e) => setDietary(e.target.value)}
+                  placeholder="vegetarian, gluten-free, dairy-free..."
+                  className="w-full bg-gray-800/50 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50"
+                />
+              </div>
 
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-300">Cooking Skill Level</label>
-              <select name="skill" value={form.skill} onChange={handleChange} required className="w-full bg-gray-800/60 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 transition-all text-sm">
-                <option value="">Select skill level</option>
-                <option value="beginner">Beginner</option>
-                <option value="intermediate">Intermediate</option>
-                <option value="advanced">Advanced</option>
-                <option value="expert">Expert / Professional</option>
-              </select>
-            </div>
-
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-300">Servings Needed</label>
-              <select name="servings" value={form.servings} onChange={handleChange} required className="w-full bg-gray-800/60 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 transition-all text-sm">
-                <option value="">Select servings</option>
-                <option value="1">1 person</option>
-                <option value="2">2 people</option>
-                <option value="3">3 people</option>
-                <option value="4">4 people</option>
-                <option value="5">5 people</option>
-                <option value="6">6 people</option>
-                <option value="8">8 people</option>
-                <option value="10">10 people</option>
-                <option value="12+">12+ people</option>
-              </select>
-            </div>
-
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-300">Prep Time Available</label>
-              <select name="prepTime" value={form.prepTime} onChange={handleChange} required className="w-full bg-gray-800/60 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 transition-all text-sm">
-                <option value="">Select time</option>
-                <option value="15">Under 15 minutes</option>
-                <option value="30">15–30 minutes</option>
-                <option value="45">30–45 minutes</option>
-                <option value="60">45–60 minutes</option>
-                <option value="90">60–90 minutes</option>
-                <option value="120+">90+ minutes</option>
-              </select>
-            </div>
-
-            <div className="space-y-2 md:col-span-2">
-              <label className="block text-sm font-medium text-gray-300">Meal Type</label>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {["Breakfast", "Lunch", "Dinner", "Snack", "Dessert", "Brunch", "Appetizer", "Side Dish"].map((type) => (
-                  <label key={type} className="flex items-center gap-2 cursor-pointer">
-                    <input type="radio" name="mealType" value={type.toLowerCase()} checked={form.mealType === type.toLowerCase()} onChange={handleChange} className="accent-amber-500" />
-                    <span className="text-sm text-gray-300">{type}</span>
-                  </label>
-                ))}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-300">Servings</label>
+                <input
+                  type="number"
+                  value={servings}
+                  onChange={(e) => setServings(e.target.value)}
+                  min="1"
+                  max="20"
+                  placeholder="4"
+                  className="w-full bg-gray-800/50 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50"
+                />
               </div>
             </div>
           </div>
 
-          <button type="submit" disabled={loading} className="w-full bg-amber-500 hover:bg-amber-400 disabled:bg-amber-500/50 text-gray-900 font-semibold py-4 rounded-xl transition-all duration-200 text-base flex items-center justify-center gap-2">
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-4 rounded-xl font-semibold text-white bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg shadow-red-900/30"
+          >
             {loading ? (
-              <>
-                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-                Generating Recipe...
-              </>
-            ) : "🍳 Generate My Recipe"}
+              <span className="flex items-center justify-center gap-2">
+                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                </svg>
+                Crafting your recipe...
+              </span>
+            ) : (
+              "🍳 Generate Recipe"
+            )}
           </button>
         </form>
 
-        {output && (
-          <div className="bg-gray-800/50 border border-gray-700 rounded-2xl p-6 md:p-8">
-            <h2 className="text-xl font-semibold text-amber-400 mb-4">Generated Recipe</h2>
-            <div className="prose prose-invert prose-amber max-w-none text-gray-200 whitespace-pre-wrap text-sm leading-relaxed">{output}</div>
+        {/* Error */}
+        {error && (
+          <div className="mb-8 p-4 rounded-xl bg-red-900/20 border border-red-500/30 text-red-400">
+            {error}
+          </div>
+        )}
+
+        {/* Result */}
+        {result && (
+          <div className="rounded-xl bg-gray-800/60 border border-gray-700 p-8 shadow-xl">
+            <div className="flex items-center gap-2 mb-6">
+              <span className="text-2xl">✨</span>
+              <h2 className="text-xl font-semibold text-white">Your Recipe</h2>
+            </div>
+            <div className="prose prose-invert prose-sm max-w-none text-gray-300 leading-relaxed">
+              <style>{`.prose h1, .prose h2, .prose h3 { color: #f87171; font-weight: 700; margin-top: 1.5em; margin-bottom: 0.5em; } .prose ul, .prose ol { padding-left: 1.5em; } .prose li { margin-bottom: 0.25em; } .prose strong { color: #fca5a5; } .prose code { background: #1f2937; padding: 0.125em 0.375em; border-radius: 0.25rem; }`}</style>
+              <div dangerouslySetInnerHTML={{ __html: result.replace(/\n/g, "<br/>") }} />
+            </div>
           </div>
         )}
       </div>

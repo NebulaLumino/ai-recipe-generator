@@ -1,50 +1,61 @@
 import { NextRequest, NextResponse } from "next/server";
-import OpenAI from "openai";
-
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-  baseURL: "https://api.deepseek.com/v1",
-});
 
 export async function POST(req: NextRequest) {
   try {
-    const { ingredients, dietary, cuisine, skill, servings, prepTime, mealType } = await req.json();
+    const { ingredients, cuisine, dietary, servings } = await req.json();
 
-    const response = await client.chat.completions.create({
+    if (!ingredients) {
+      return NextResponse.json({ error: "Ingredients are required" }, { status: 400 });
+    }
+
+    // Lazy init - create client inside handler
+    const { OpenAI } = await import("openai");
+    const client = new OpenAI({
+      baseURL: "https://api.deepseek.com/v1",
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+
+    const prompt = `You are an expert chef and recipe developer. Create a detailed, delicious recipe based on the following:
+
+**Available Ingredients:** ${ingredients}
+**Preferred Cuisine:** ${cuisine || "Any cuisine the ingredients suit best"}
+**Dietary Restrictions:** ${dietary || "None"}
+**Servings:** ${servings || "4"}
+
+Please provide:
+1. A creative recipe name
+2. Brief description
+3. Ingredients list (with approximate quantities)
+4. Step-by-step instructions
+5. Cooking tips and tricks
+6. Estimated prep time and cook time
+7. Difficulty level
+8. Wine or drink pairing suggestion
+
+Format your response with clear headings. Be specific with measurements and times.`;
+
+    const completion = await client.chat.completions.create({
       model: "deepseek-chat",
       messages: [
         {
           role: "system",
-          content: `You are an expert culinary AI assistant specializing in personalized recipe generation and meal planning. Generate comprehensive, actionable output based on the user's inputs. Your output should include: a full recipe with ingredients list and step-by-step instructions, nutritional info estimate per serving, meal plan suggestions for the week, and a shopping list extension for any missing ingredients. Format everything clearly with headers, bullet points, and markdown. Be specific with measurements, temperatures, and times.`,
+          content: "You are an expert chef with extensive culinary knowledge across all world cuisines. You create recipes that are creative, practical, and delicious. Always provide specific measurements, times, and helpful tips.",
         },
         {
           role: "user",
-          content: `Generate a personalized recipe with the following details:
-
-- Available Ingredients: ${ingredients}
-- Dietary Restrictions: ${dietary}
-- Cuisine Preference: ${cuisine}
-- Cooking Skill Level: ${skill}
-- Servings Needed: ${servings}
-- Prep Time Available: ${prepTime} minutes
-- Meal Type: ${mealType}
-
-Please provide:
-1. Recipe Name & Description
-2. Complete Ingredients List (with measurements)
-3. Step-by-Step Instructions
-4. Nutritional Info Estimate (per serving)
-5. Meal Plan Suggestions
-6. Shopping List Extension (additional items needed)`,
+          content: prompt,
         },
       ],
       temperature: 0.8,
       max_tokens: 2000,
     });
 
-    return NextResponse.json({ result: response.choices[0].message.content });
+    const result = completion.choices[0]?.message?.content || "No recipe generated.";
+
+    return NextResponse.json({ result });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Unknown error";
+    console.error("Generate error:", error);
+    const message = error instanceof Error ? error.message : "Generation failed";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
